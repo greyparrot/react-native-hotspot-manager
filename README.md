@@ -3,7 +3,7 @@
 
 ## Getting started
 
-`$ npm install react-native-hotspot-manager --save`
+`$ npm install --save greyparrot/react-native-hotspot-manager#master`
 
 ### Mostly automatic installation
 
