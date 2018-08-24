@@ -48,10 +48,12 @@
 import RNHotspotManager from 'react-native-hotspot-manager';
 
 // TODO: What to do with the module?
-RNHotspotManager.createHotspot('Pussy',
+RNHotspotManager.createHotspot('HOTSPOT NAME',
+//error callback
     (status, msg) => {
       console.warn(status, msg);
     },
+    success callback
     (status, msg) => {
       console.warn(status, msg);
     }
