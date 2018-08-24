@@ -142,8 +142,7 @@ public class RNHotspotManagerModule extends ReactContextBaseJavaModule implement
 	}
 
 	@Override
-	public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent) {
-		System.out.println("====================================");
+	public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent intent) { 
 		if (requestCode == REQUEST_CODE) {
 			this._fireHotSpot();
 		}
