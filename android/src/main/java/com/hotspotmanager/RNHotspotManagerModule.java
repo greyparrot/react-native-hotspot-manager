@@ -26,11 +26,19 @@ import android.net.wifi.WifiConfiguration;
 import android.net.wifi.WifiManager;
 import android.widget.Toast;
 
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.List;
+
 public class RNHotspotManagerModule extends ReactContextBaseJavaModule implements ActivityEventListener {
 
 	private static final int REQUEST_CODE = 78;
 	private static Method getWifiApConfiguration;
-	private static Method getWifiApState; 
+	private static Method getWifiApState;
 	private static Method setWifiApConfiguration;
 
 	static {
@@ -41,7 +49,7 @@ public class RNHotspotManagerModule extends ReactContextBaseJavaModule implement
 				break;
 			case "getWifiApState":
 				getWifiApState = method;
-				break; 
+				break;
 			case "setWifiApConfiguration":
 				setWifiApConfiguration = method;
 				break;
@@ -79,7 +87,9 @@ public class RNHotspotManagerModule extends ReactContextBaseJavaModule implement
 		Boolean result = setWifiApEnabled(true, this.ssid);
 		WritableMap params = Arguments.createMap();
 		if (result == true) {
+			String ipAddress = this.getIPAddress();
 			params.putString("status", "Created Network!");
+			params.putString("ipAddress", ipAddress);
 			// this.successCallback.invoke(true, params);
 		} else {
 			params.putString("status", "Failed");
@@ -109,37 +119,39 @@ public class RNHotspotManagerModule extends ReactContextBaseJavaModule implement
 		// restore original hotspot config if available
 		if (null != m_original_config_backup)
 			this.setHotspotConfig(m_original_config_backup);
-		    this.setHotspotEnabled(m_original_config_backup, false);
+		this.setHotspotEnabled(m_original_config_backup, false);
 	}
 
-
-    public WifiConfiguration getConfiguration() {
-		WifiManager wifimanager = (WifiManager)  getReactApplicationContext().getSystemService( getReactApplicationContext().WIFI_SERVICE);
-        Object result = invokeSilently(getWifiApConfiguration, wifimanager);
-        if (result == null) {
-            return null;
-        }
-        return (WifiConfiguration) result;
-}
+	public WifiConfiguration getConfiguration() {
+		WifiManager wifimanager = (WifiManager) getReactApplicationContext()
+				.getSystemService(getReactApplicationContext().WIFI_SERVICE);
+		Object result = invokeSilently(getWifiApConfiguration, wifimanager);
+		if (result == null) {
+			return null;
+		}
+		return (WifiConfiguration) result;
+	}
 
 	private boolean setHotspotEnabled(WifiConfiguration config, boolean enabled) {
 		try {
-		WifiManager wifimanager = (WifiManager)  getReactApplicationContext().getSystemService( getReactApplicationContext().WIFI_SERVICE);
-		Method setWifiApEnabledMethod = wifimanager.getClass().getMethod("setWifiApEnabled",
+			WifiManager wifimanager = (WifiManager) getReactApplicationContext()
+					.getSystemService(getReactApplicationContext().WIFI_SERVICE);
+			Method setWifiApEnabledMethod = wifimanager.getClass().getMethod("setWifiApEnabled",
 					WifiConfiguration.class, boolean.class);
-		Object result = invokeSilently(setWifiApEnabledMethod, wifimanager, config, enabled);
-		if (result == null) {
+			Object result = invokeSilently(setWifiApEnabledMethod, wifimanager, config, enabled);
+			if (result == null) {
+				return false;
+			}
+			return (Boolean) result;
+		} catch (Exception e) {
+			Log.e("RN Hotspot Manager", "error: " + e.getMessage());
 			return false;
 		}
-		return (Boolean) result;
-	} catch (Exception e) {
-		Log.e("RN Hotspot Manager", "error: " + e.getMessage());
-		return false;
-	}
 	}
 
 	private boolean setHotspotConfig(WifiConfiguration config) {
-		WifiManager wifimanager = (WifiManager) getReactApplicationContext().getSystemService( getReactApplicationContext().WIFI_SERVICE);
+		WifiManager wifimanager = (WifiManager) getReactApplicationContext()
+				.getSystemService(getReactApplicationContext().WIFI_SERVICE);
 		Object result = invokeSilently(setWifiApConfiguration, wifimanager, config);
 		if (result == null) {
 			return false;
@@ -149,8 +161,9 @@ public class RNHotspotManagerModule extends ReactContextBaseJavaModule implement
 	// Use the class below to change/check the Wifi hotspot setting:
 
 	// check whether wifi hotspot on or off
-	public  boolean isApOn(Context context) {
-		WifiManager wifimanager = (WifiManager) getReactApplicationContext().getSystemService( getReactApplicationContext().WIFI_SERVICE);
+	public boolean isApOn(Context context) {
+		WifiManager wifimanager = (WifiManager) getReactApplicationContext()
+				.getSystemService(getReactApplicationContext().WIFI_SERVICE);
 		try {
 			Method method = wifimanager.getClass().getDeclaredMethod("isWifiApEnabled");
 			method.setAccessible(true);
@@ -161,19 +174,46 @@ public class RNHotspotManagerModule extends ReactContextBaseJavaModule implement
 	}
 
 	private static Object invokeSilently(Method method, Object receiver, Object... args) {
-        try {
-            return method.invoke(receiver, args);
-        } catch (Exception e) {
-            Log.e("RN Hotspot Manager", "error invoking methods: " + e.getMessage());
-        }
-        return null;
+		try {
+			return method.invoke(receiver, args);
+		} catch (Exception e) {
+			Log.e("RN Hotspot Manager", "error invoking methods: " + e.getMessage());
+		}
+		return null;
+	}
+
+	    public String getIPAddress() {
+        String ipAddress = "0.0.0.0";
+
+        for (InterfaceAddress address : getInetAddresses()) {
+            if (!address.getAddress().isLoopbackAddress() && address.getAddress() instanceof Inet4Address) {
+                ipAddress = address.getAddress().getHostAddress().toString();
+            }
+}
+		return ipAddress;
     }
 
+
+	private List<InterfaceAddress> getInetAddresses() {
+        List<InterfaceAddress> addresses = new ArrayList<>();
+        try {
+            for (Enumeration<NetworkInterface> en = NetworkInterface.getNetworkInterfaces(); en.hasMoreElements(); ) {
+                NetworkInterface intf = en.nextElement();
+
+                for (InterfaceAddress interface_address : intf.getInterfaceAddresses()) {
+                    addresses.add(interface_address);
+                }
+            }
+        } catch (Exception ex) {
+            Log.e("RN Hotspot Manager", ex.toString());
+        }
+        return addresses;
+}
 
 	public boolean setWifiApEnabled(boolean enabled, String ssid) {
 		WifiManager mWifiManager = (WifiManager) getReactApplicationContext()
 				.getSystemService(getReactApplicationContext().WIFI_SERVICE);
-				m_original_config_backup = this.getConfiguration();
+		m_original_config_backup = this.getConfiguration();
 		WifiConfiguration wificonfiguration = new WifiConfiguration();
 		// WifiConfiguration wificonfiguration =mwifi
 		wificonfiguration.SSID = ssid;
@@ -184,8 +224,6 @@ public class RNHotspotManagerModule extends ReactContextBaseJavaModule implement
 		}
 
 		try {
-
-		 
 
 			// configuration = null works for many devices
 			Method setWifiApEnabledMethod = mWifiManager.getClass().getMethod("setWifiApEnabled",
